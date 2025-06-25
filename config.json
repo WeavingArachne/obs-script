@@ -1,0 +1,57 @@
+{
+    "obs": {
+        "host": "localhost",
+        "port": 4455,
+        "password": "2635850010",
+        "obs_executable": "obs64.exe"
+    },
+    "groups": {
+        "Round 32": {
+            "scene_name": "Scene",
+            "record_folder": "C:/Users/001/Videos/Round32",
+            "google_drive": {
+                "credentials_file": "credentials32.json",
+                "token_file": "token_group32.json",
+                "upload_folder_id": "1ja_httcXdR75xBl5HSk_p7KHF5koK_Ii",
+                "scopes": [
+                    "https://www.googleapis.com/auth/drive.file"
+                ]
+            }
+        },
+        "Round 33": {
+            "scene_name": "Scene",
+            "record_folder": "C:/Users/001/Videos/Round33",
+            "google_drive": {
+                "credentials_file": "credentials32.json",
+                "token_file": "token_group32.json",
+                "upload_folder_id": "1ja_httcXdR75xBl5HSk_p7KHF5koK_Ii",
+                "scopes": [
+                    "https://www.googleapis.com/auth/drive.file"
+                ]
+            }
+        },
+        "Round 34": {
+            "scene_name": "Scene",
+            "google_drive": {
+                "credentials_file": "credentials_group2.json",
+                "token_file": "token_group2.json",
+                "upload_folder_id": "root",
+                "scopes": [
+                    "https://www.googleapis.com/auth/drive.file"
+                ]
+            }
+        },
+        "Round 35": {
+            "scene_name": "scence",
+            "record_folder": "",
+            "google_drive": {
+                "credentials_file": "credentials_round_35.json",
+                "token_file": "token_round_35.json",
+                "upload_folder_id": "root",
+                "scopes": [
+                    "https://www.googleapis.com/auth/drive.file"
+                ]
+            }
+        }
+    }
+}
