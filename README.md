@@ -73,17 +73,22 @@ The script will create a `config.json` file on first run. Edit it with your sett
         "host": "localhost",
         "port": 4455,
         "password": "your_obs_websocket_password",
-        "scene_name": "Your Scene Name",
-        "recording_path": "",
         "obs_executable": "obs64.exe"
     },
-    "google_drive": {
+"groups": {
+        "Your Group Name": {
+            "scene_name": "Scene",
+            "record_folder": "place your want the record to be saved",
+            "google_drive": {
         "credentials_file": "credentials.json",
         "token_file": "token.json",
         "upload_folder_id": "root",
         "scopes": ["https://www.googleapis.com/auth/drive.file"]
     }
+        },
+    
 }
+  
 ```
 
 ### Configuration Options:
