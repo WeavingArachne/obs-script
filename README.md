@@ -14,7 +14,7 @@ This Python script automates OBS Studio recording and uploads the recorded video
 
 Navigate to this directory in terminal/command prompt:
 ```bash
-cd "C:\Users\001\Desktop\All Projects\ah\obs-script"
+cd "Path to script"
 ```
 
 Install the required packages:
