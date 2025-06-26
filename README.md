@@ -57,7 +57,7 @@ pip install -r requirements.txt
    - Choose "Desktop application"
    - Download the JSON file
    - Rename it to `credentials.json`
-   - Place it in this directory (`C:\Users\001\Desktop\All Projects\ah\obs-script\`)
+   - Place it in this directory (`Path to script`)
 
 4. **Get Folder ID (Optional):**
    - If you want to upload to a specific folder, get its ID from the URL
@@ -99,7 +99,7 @@ The script will create a `config.json` file on first run. Edit it with your sett
 
 1. **Navigate to the project directory:**
    ```bash
-   cd "C:\Users\001\Desktop\All Projects\ah\obs-script"
+   cd "Path to script"
    ```
 
 2. **Run the script:**
@@ -154,7 +154,7 @@ The script will create a `config.json` file on first run. Edit it with your sett
 
 ### File Structure:
 ```
-C:\Users\001\Desktop\All Projects\ah\obs-script\
+Path to script
 ├── obs_auto_recorder.py
 ├── config.json (created on first run)
 ├── credentials.json (you need to add this)
