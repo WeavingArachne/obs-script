@@ -14,7 +14,7 @@ This Python script automates OBS Studio recording and uploads the recorded video
 
 Navigate to this directory in terminal/command prompt:
 ```bash
-cd "C:\Users\001\Desktop\All Projects\ah\obs-script"
+cd "Path to script"
 ```
 
 Install the required packages:
@@ -57,7 +57,7 @@ pip install -r requirements.txt
    - Choose "Desktop application"
    - Download the JSON file
    - Rename it to `credentials.json`
-   - Place it in this directory (`C:\Users\001\Desktop\All Projects\ah\obs-script\`)
+   - Place it in this directory (`Path to script`)
 
 4. **Get Folder ID (Optional):**
    - If you want to upload to a specific folder, get its ID from the URL
@@ -73,17 +73,22 @@ The script will create a `config.json` file on first run. Edit it with your sett
         "host": "localhost",
         "port": 4455,
         "password": "your_obs_websocket_password",
-        "scene_name": "Your Scene Name",
-        "recording_path": "",
         "obs_executable": "obs64.exe"
     },
-    "google_drive": {
+"groups": {
+        "Your Group Name": {
+            "scene_name": "Scene",
+            "record_folder": "place your want the record to be saved",
+            "google_drive": {
         "credentials_file": "credentials.json",
         "token_file": "token.json",
         "upload_folder_id": "root",
         "scopes": ["https://www.googleapis.com/auth/drive.file"]
     }
+        },
+    
 }
+  
 ```
 
 ### Configuration Options:
@@ -99,7 +104,7 @@ The script will create a `config.json` file on first run. Edit it with your sett
 
 1. **Navigate to the project directory:**
    ```bash
-   cd "C:\Users\001\Desktop\All Projects\ah\obs-script"
+   cd "Path to script"
    ```
 
 2. **Run the script:**
@@ -154,7 +159,7 @@ The script will create a `config.json` file on first run. Edit it with your sett
 
 ### File Structure:
 ```
-C:\Users\001\Desktop\All Projects\ah\obs-script\
+Path to script
 ├── obs_auto_recorder.py
 ├── config.json (created on first run)
 ├── credentials.json (you need to add this)
