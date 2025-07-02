@@ -103,6 +103,22 @@ class OBSRecordingAutomator:
             return None
         return self.config["groups"][self.current_group]
 
+    def wait_for_obs_to_be_ready(self, timeout=10):
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            try:
+                test_ws = obsws(
+                    self.config["obs"]["host"],
+                    self.config["obs"]["port"],
+                    self.config["obs"]["password"]
+                )
+                test_ws.connect()
+                test_ws.disconnect()
+                return True
+            except:
+                time.sleep(0.5)
+        return False
+
     def launch_obs(self):
         try:
             obs_path = self.config["obs"]["obs_executable"]
@@ -124,8 +140,12 @@ class OBSRecordingAutomator:
                     return False
             working_dir = os.path.dirname(obs_path)
             subprocess.Popen([obs_path], cwd=working_dir)
-            print("OBS launched successfully")
-            time.sleep(5)
+            time.sleep(3)
+            print("OBS launched, waiting for WebSocket to be ready...")
+            if not self.wait_for_obs_to_be_ready():
+                print("OBS did not become ready in time.")
+                return False
+            print("OBS launched and ready")
             return True
         except Exception as e:
             print(f"Failed to launch OBS: {e}")
@@ -199,8 +219,11 @@ class OBSRecordingAutomator:
                     token_file, scopes)
             if not creds or not creds.valid:
                 if creds and creds.expired and creds.refresh_token:
+                    print("🔄 Token expired. Attempting to refresh...")
                     creds.refresh(Request())
+                    print("✅ Token refreshed.")
                 else:
+                    print("🔐 No valid token or refresh token. Starting new flow...")
                     if not os.path.exists(credentials_file):
                         print(
                             f"Google Drive credentials file not found: {credentials_file}")
@@ -219,37 +242,6 @@ class OBSRecordingAutomator:
                 f"Failed to setup Google Drive authentication for {group_name}: {e}")
             return False
 
-    # def upload_to_drive(self, file_path, group_name):
-    #     try:
-    #         if group_name not in self.drive_services:
-    #             print(f"No Drive service available for {group_name}")
-    #             return False
-    #         drive_service = self.drive_services[group_name]
-    #         group_config = self.config["groups"][group_name]
-    #         drive_config = group_config["google_drive"]
-    #         file_name = os.path.basename(file_path)
-    #         file_name_with_group = f"[{group_name}] {file_name}"
-    #         file_metadata = {
-    #             'name': file_name_with_group,
-    #             'parents': [drive_config["upload_folder_id"]]
-    #         }
-    #         media = MediaFileUpload(file_path, resumable=True)
-    #         print(f"Uploading {file_name} to Google Drive for {group_name}...")
-    #         request = drive_service.files().create(
-    #             body=file_metadata,
-    #             media_body=media,
-    #             fields='id'
-    #         )
-    #         response = None
-    #         while response is None:
-    #             status, response = request.next_chunk()
-    #             if status:
-    #                 print(f"Upload progress: {int(status.progress() * 100)}%")
-    #         print(f"Upload completed! File ID: {response.get('id')}")
-    #         return True
-    #     except Exception as e:
-    #         print(f"Failed to upload to Google Drive for {group_name}: {e}")
-    #         return False
     def upload_to_drive(self, file_path, group_name, max_retries=0):
         """Upload file to Google Drive for a specific group, retry if offline"""
         attempt = 0
@@ -295,6 +287,11 @@ class OBSRecordingAutomator:
 
             except Exception as e:
                 attempt += 1
+                error_message = str(e)
+                if "storageQuotaExceeded" in error_message:
+                    print(
+                        "🚫 Upload failed: Google Drive storage quota exceeded (15GB limit reached).")
+                    return False
                 print(f"Upload failed (Attempt {attempt}): {e}")
                 print(
                     f"Retrying in {wait_time} seconds... (Press Ctrl+C to cancel)")
@@ -338,7 +335,7 @@ class OBSRecordingAutomator:
                 elif not is_recording and was_recording:
                     print(f"Recording stopped for {self.current_group}")
                     was_recording = False
-                    time.sleep(2)
+                    time.sleep(10)
                     if self.recording_file and os.path.exists(self.recording_file):
                         print(
                             f"Uploading recorded file to {self.current_group}'s Drive: {self.recording_file}")
