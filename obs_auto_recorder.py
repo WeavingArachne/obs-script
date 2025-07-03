@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 import subprocess
 import json
@@ -12,6 +13,7 @@ from googleapiclient.http import MediaFileUpload
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
+from googleapiclient.http import MediaFileUpload
 
 
 class OBSRecordingAutomator:
@@ -242,64 +244,143 @@ class OBSRecordingAutomator:
                 f"Failed to setup Google Drive authentication for {group_name}: {e}")
             return False
 
-    def upload_to_drive(self, file_path, group_name, max_retries=0):
-        """Upload file to Google Drive for a specific group, retry if offline"""
-        attempt = 0
-        wait_time = 8  # seconds between retries
+    # def upload_to_drive(self, file_path, group_name, max_retries=0):
+    #     """Upload file to Google Drive for a specific group, retry if offline"""
+    #     attempt = 0
+    #     wait_time = 8  # seconds between retries
 
-        while True:
-            try:
-                if group_name not in self.drive_services:
-                    print(f"No Drive service available for {group_name}")
-                    return False
+    #     while True:
+    #         try:
+    #             if group_name not in self.drive_services:
+    #                 print(f"No Drive service available for {group_name}")
+    #                 return False
 
-                drive_service = self.drive_services[group_name]
-                group_config = self.config["groups"][group_name]
-                drive_config = group_config["google_drive"]
+    #             drive_service = self.drive_services[group_name]
+    #             group_config = self.config["groups"][group_name]
+    #             drive_config = group_config["google_drive"]
 
-                file_name = os.path.basename(file_path)
-                file_name_with_group = f"[{group_name}] {file_name}"
+    #             file_name = os.path.basename(file_path)
+    #             file_name_with_group = f"[{group_name}] {file_name}"
 
-                file_metadata = {
-                    'name': file_name_with_group,
-                    'parents': [drive_config["upload_folder_id"]]
-                }
+    #             file_metadata = {
+    #                 'name': file_name_with_group,
+    #                 'parents': [drive_config["upload_folder_id"]]
+    #             }
 
-                media = MediaFileUpload(file_path, resumable=True)
+    #             media = MediaFileUpload(file_path, resumable=True)
 
-                print(
-                    f"Uploading {file_name} to Google Drive for {group_name} (Attempt {attempt+1})...")
-                request = drive_service.files().create(
-                    body=file_metadata,
-                    media_body=media,
-                    fields='id'
-                )
+    #             print(
+    #                 f"Uploading {file_name} to Google Drive for {group_name} (Attempt {attempt+1})...")
+    #             request = drive_service.files().create(
+    #                 body=file_metadata,
+    #                 media_body=media,
+    #                 fields='id'
+    #             )
 
-                response = None
-                while response is None:
+    #             response = None
+    #             while response is None:
+    #                 status, response = request.next_chunk()
+    #                 if status:
+    #                     print(
+    #                         f"Upload progress: {int(status.progress() * 100)}%")
+
+    #             print(f"Upload completed! File ID: {response.get('id')}")
+    #             return True
+
+    #         except Exception as e:
+    #             attempt += 1
+    #             error_message = str(e)
+    #             if "storageQuotaExceeded" in error_message:
+    #                 print(
+    #                     "🚫 Upload failed: Google Drive storage quota exceeded (15GB limit reached).")
+    #                 return False
+    #             print(f"Upload failed (Attempt {attempt}): {e}")
+    #             print(
+    #                 f"Retrying in {wait_time} seconds... (Press Ctrl+C to cancel)")
+    #             time.sleep(wait_time)
+
+    #             if max_retries and attempt >= max_retries:
+    #                 print("Max retries reached. Giving up.")
+    #                 return False
+
+    def upload_to_drive(self, file_path, group_name, max_retries=10):
+        """Upload file to Google Drive for a specific group with true resumable retry logic"""
+        wait_time = 8  # seconds between chunk retries
+
+        def print_progress_bar(progress, total, bar_length=40):
+            percent = progress / total if total > 0 else 0
+            arrow_count = int(round(percent * bar_length))
+            arrow = '=' * (arrow_count - 1) + '>' if arrow_count > 0 else ''
+            spaces = ' ' * (bar_length - arrow_count)
+            sys.stdout.write(
+                f"\rUploading: [{arrow + spaces}] {int(percent * 100)}%")
+            sys.stdout.flush()
+
+        if group_name not in self.drive_services:
+            print(f"No Drive service available for {group_name}")
+            return False
+
+        drive_service = self.drive_services[group_name]
+        group_config = self.config["groups"][group_name]
+        drive_config = group_config["google_drive"]
+
+        file_name = os.path.basename(file_path)
+        file_name_with_group = f"[{group_name}] {file_name}"
+        file_size = os.path.getsize(file_path)
+
+        file_metadata = {
+            'name': file_name_with_group,
+            'parents': [drive_config["upload_folder_id"]]
+        }
+
+        media = MediaFileUpload(file_path, resumable=True,
+                                chunksize=1 * 1024 * 1024)  # 1MB chunks
+
+        print(f"\nUploading {file_name} to Google Drive for {group_name}...")
+
+        try:
+            request = drive_service.files().create(
+                body=file_metadata,
+                media_body=media,
+                fields='id'
+            )
+
+            response = None
+            last_progress = 0
+            retries = 0
+
+            while response is None:
+                try:
                     status, response = request.next_chunk()
                     if status:
-                        print(
-                            f"Upload progress: {int(status.progress() * 100)}%")
+                        current_progress = int(status.progress() * file_size)
+                        print_progress_bar(current_progress, file_size)
+                        last_progress = current_progress
+                        retries = 0  # reset retries on success
+                    else:
+                        print_progress_bar(last_progress, file_size)
 
-                print(f"Upload completed! File ID: {response.get('id')}")
-                return True
-
-            except Exception as e:
-                attempt += 1
-                error_message = str(e)
-                if "storageQuotaExceeded" in error_message:
+                except Exception as e:
+                    retries += 1
                     print(
-                        "🚫 Upload failed: Google Drive storage quota exceeded (15GB limit reached).")
-                    return False
-                print(f"Upload failed (Attempt {attempt}): {e}")
-                print(
-                    f"Retrying in {wait_time} seconds... (Press Ctrl+C to cancel)")
-                time.sleep(wait_time)
+                        f"\n⚠️ Chunk upload failed (Retry {retries} of {max_retries}): {e}")
+                    if "storageQuotaExceeded" in str(e):
+                        print(
+                            "🚫 Upload failed: Google Drive storage quota exceeded (15GB limit reached).")
+                        return False
+                    # if retries >= max_retries:
+                    #     print("❌ Max chunk retries reached. Upload failed.")
+                    #     return False
+                    print(f"⏳ Retrying chunk in {wait_time} seconds...")
+                    time.sleep(wait_time)
 
-                if max_retries and attempt >= max_retries:
-                    print("Max retries reached. Giving up.")
-                    return False
+            print_progress_bar(file_size, file_size)
+            print(f"\n✅ Upload completed! File ID: {response.get('id')}")
+            return True
+
+        except Exception as e:
+            print(f"❌ Upload initialization failed: {e}")
+            return False
 
     class RecordingHandler(FileSystemEventHandler):
         def __init__(self, automator):
