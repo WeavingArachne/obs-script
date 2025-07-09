@@ -244,65 +244,6 @@ class OBSRecordingAutomator:
                 f"Failed to setup Google Drive authentication for {group_name}: {e}")
             return False
 
-    # def upload_to_drive(self, file_path, group_name, max_retries=0):
-    #     """Upload file to Google Drive for a specific group, retry if offline"""
-    #     attempt = 0
-    #     wait_time = 8  # seconds between retries
-
-    #     while True:
-    #         try:
-    #             if group_name not in self.drive_services:
-    #                 print(f"No Drive service available for {group_name}")
-    #                 return False
-
-    #             drive_service = self.drive_services[group_name]
-    #             group_config = self.config["groups"][group_name]
-    #             drive_config = group_config["google_drive"]
-
-    #             file_name = os.path.basename(file_path)
-    #             file_name_with_group = f"[{group_name}] {file_name}"
-
-    #             file_metadata = {
-    #                 'name': file_name_with_group,
-    #                 'parents': [drive_config["upload_folder_id"]]
-    #             }
-
-    #             media = MediaFileUpload(file_path, resumable=True)
-
-    #             print(
-    #                 f"Uploading {file_name} to Google Drive for {group_name} (Attempt {attempt+1})...")
-    #             request = drive_service.files().create(
-    #                 body=file_metadata,
-    #                 media_body=media,
-    #                 fields='id'
-    #             )
-
-    #             response = None
-    #             while response is None:
-    #                 status, response = request.next_chunk()
-    #                 if status:
-    #                     print(
-    #                         f"Upload progress: {int(status.progress() * 100)}%")
-
-    #             print(f"Upload completed! File ID: {response.get('id')}")
-    #             return True
-
-    #         except Exception as e:
-    #             attempt += 1
-    #             error_message = str(e)
-    #             if "storageQuotaExceeded" in error_message:
-    #                 print(
-    #                     "🚫 Upload failed: Google Drive storage quota exceeded (15GB limit reached).")
-    #                 return False
-    #             print(f"Upload failed (Attempt {attempt}): {e}")
-    #             print(
-    #                 f"Retrying in {wait_time} seconds... (Press Ctrl+C to cancel)")
-    #             time.sleep(wait_time)
-
-    #             if max_retries and attempt >= max_retries:
-    #                 print("Max retries reached. Giving up.")
-    #                 return False
-
     def upload_to_drive(self, file_path, group_name, max_retries=10):
         """Upload file to Google Drive for a specific group with true resumable retry logic"""
         wait_time = 8  # seconds between chunk retries
@@ -395,6 +336,47 @@ class OBSRecordingAutomator:
                     print(f"New recording detected: {event.src_path}")
                     self.automator.recording_file = event.src_path
 
+    # def monitor_recording_completion(self):
+    #     recording_path = self.get_recording_path()
+    #     if not recording_path:
+    #         print("Could not determine recording path")
+    #         return
+    #     event_handler = self.RecordingHandler(self)
+    #     self.observer = Observer()
+    #     self.observer.schedule(event_handler, recording_path, recursive=False)
+    #     self.observer.start()
+    #     print(f"Monitoring recording status for group: {self.current_group}")
+    #     print("Press Ctrl+C to stop monitoring")
+    #     try:
+    #         was_recording = False
+    #         while True:
+    #             is_recording = self.get_recording_status()
+    #             if is_recording and not was_recording:
+    #                 print(f"Recording started for {self.current_group}")
+    #                 was_recording = True
+    #             elif not is_recording and was_recording:
+    #                 print(f"Recording stopped for {self.current_group}")
+    #                 was_recording = False
+    #                 time.sleep(10)
+    #                 if self.recording_file and os.path.exists(self.recording_file):
+    #                     print(
+    #                         f"Uploading recorded file to {self.current_group}'s Drive: {self.recording_file}")
+    #                     if self.upload_to_drive(self.recording_file, self.current_group):
+    #                         print(
+    #                             f"Upload successful to {self.current_group}'s Google Drive!")
+    #                     else:
+    #                         print(f"Upload failed for {self.current_group}!")
+    #                     self.recording_file = None
+    #                 else:
+    #                     print("No recording file found")
+    #             time.sleep(1)
+    #     except KeyboardInterrupt:
+    #         print("\nMonitoring stopped")
+    #     finally:
+    #         if self.observer:
+    #             self.observer.stop()
+    #             self.observer.join()
+
     def monitor_recording_completion(self):
         recording_path = self.get_recording_path()
         if not recording_path:
@@ -416,18 +398,47 @@ class OBSRecordingAutomator:
                 elif not is_recording and was_recording:
                     print(f"Recording stopped for {self.current_group}")
                     was_recording = False
-                    time.sleep(10)
+
+                    # 🔄 Wait for file to appear
+                    print("⏳ Waiting for recording file to appear...")
+                    wait_time = 0
+                    max_wait = 60
+                    while wait_time < max_wait:
+                        if self.recording_file and os.path.exists(self.recording_file):
+                            print(
+                                f"✅ Recording file detected: {self.recording_file}")
+                            break
+                        time.sleep(8)
+                        wait_time += 8
+                    else:
+                        print("🚫 Recording file not found after waiting.")
+                        # 🧍 Ask user to manually provide path
+                        while True:
+                            manual_path = input(
+                                "📂 Please enter the full path to the recording file (or press Enter to skip): ").strip()
+                            if manual_path == "":
+                                print("⚠️ Skipping upload.")
+                                self.recording_file = None
+                                break
+                            elif os.path.exists(manual_path):
+                                self.recording_file = manual_path
+                                print(
+                                    f"✅ Using manually provided file: {self.recording_file}")
+                                break
+                            else:
+                                print(
+                                    "❌ File not found. Try again or press Enter to skip.")
+
                     if self.recording_file and os.path.exists(self.recording_file):
                         print(
                             f"Uploading recorded file to {self.current_group}'s Drive: {self.recording_file}")
                         if self.upload_to_drive(self.recording_file, self.current_group):
                             print(
-                                f"Upload successful to {self.current_group}'s Google Drive!")
+                                f"✅ Upload successful to {self.current_group}'s Google Drive!")
                         else:
-                            print(f"Upload failed for {self.current_group}!")
+                            print(f"❌ Upload failed for {self.current_group}!")
                         self.recording_file = None
-                    else:
-                        print("No recording file found")
+
                 time.sleep(1)
         except KeyboardInterrupt:
             print("\nMonitoring stopped")
